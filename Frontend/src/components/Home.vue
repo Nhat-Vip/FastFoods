@@ -37,6 +37,7 @@ const combos = ref([]);
 const categories = ref([]);
 const filterFoods = ref([]);
 const filterCombos = ref([]);
+const notFound = ref('');
 
 const fetchFood = async () => {
     try {
@@ -79,16 +80,25 @@ const FilterByCategory = (categoryId) => {
     }
     else if (categoryId == "combo") {
         filterFoods.value = [];
+        if (combos.value.length == 0) {
+            notFound.value = "Không có combo nào tồn tại"
+            return;
+        }
         filterCombos.value = [...combos.value];
     }
     else {
         filterFoods.value = foods.value.filter(item => item.categoryId == categoryId);
-        filterCombos.value = combos.value.filter(item=> item.comboItems.some(c=>c.fastFood.categoryId == categoryId))
+        filterCombos.value = combos.value.filter(item => item.comboItems.some(c => c.fastFood.categoryId == categoryId))
+
+        if (filterFoods.value.length == 0 && filterCombos.value.length == 0) {
+            notFound.value = "Không có sản phẩm nào thuộc danh mục " + categorySelected.value;
+            return;
+        }
     }
+    notFound.value = '';
 }
 
 const applyFilters = () => {
-    console.log("Filter");
     filterFoods.value = foods.value.filter(item => {
 
         const matchName =
@@ -130,6 +140,13 @@ const applyFilters = () => {
         return matchName && matchCategory && matchMinPrice && matchMaxPrice;
     });
 
+   
+    if (filterFoods.value.length == 0 && filterCombos.value.length == 0) {
+        notFound.value = "Không có sản phẩm nào được tìm thấy";
+        showFilterModal.value = false;
+        return;
+    }
+    notFound.value = '';
     showFilterModal.value = false;
 };
 
@@ -147,7 +164,7 @@ onMounted(async () => {
         <div class="category">
             <ul class="d-flex">
                 <li :class='["category-item", categorySelected == "All" ? "active" : ""]'
-                    @click="categorySelected = 'All', FilterByCategory(0)">All</li>
+                    @click="categorySelected = 'All', FilterByCategory(0)">Tất cả</li>
                 <li :class='["category-item", categorySelected == "Combo" ? "active" : ""]'
                     @click="categorySelected = 'Combo', FilterByCategory('combo')">Combo</li>
                 <li v-for="item in categories"
@@ -161,6 +178,10 @@ onMounted(async () => {
             </ul>
         </div>
         <hr />
+           <div class="fs-4 fw-bold text-center mt-3" style="color: orangered;"
+                 v-if="notFound">
+                   {{notFound}}
+            </div>
         <div class="list-products">
             <FastFood v-for="food in filterFoods.slice(0,8)" :imgUrl=food.imageUrl :foodId=food.fastFoodId :name=food.name
                 :price="Number(food.price)"></FastFood>

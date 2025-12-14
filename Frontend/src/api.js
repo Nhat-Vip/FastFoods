@@ -1,5 +1,8 @@
 import axios from "axios";
 import { useAuthStore } from "./stores/auth";
+import { AlertError } from "./Notification";
+import { useRoute } from "vue-router";
+
 
 const api = axios.create({
     baseURL: "http://localhost:5062/api"
@@ -21,6 +24,9 @@ api.interceptors.response.use(
             const auth = useAuthStore();
             auth.logout();
             window.location.href = '/login'
+        }
+        if (error.response?.status === 429) {
+            AlertError("Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.");
         }
         return Promise.reject(error)
     }

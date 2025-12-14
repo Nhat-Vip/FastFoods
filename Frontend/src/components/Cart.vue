@@ -7,7 +7,6 @@ import { useRouter } from 'vue-router'
 const isOpen = ref(false);
 const cart = useCartStore();
 
-// Dữ liệu giỏ hàng (sau này dùng Pinia hoặc localStorage)
 const cartItems = ref(cart.cartItem);
 
 const deliveryFee = 20000

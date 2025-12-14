@@ -503,3 +503,6 @@ C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\obj\Debug
 C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\obj\Debug\net9.0\ASM.genruntimeconfig.cache
 C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\obj\Debug\net9.0\ref\ASM.dll
 C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\bin\Debug\net9.0\ASM.staticwebassets.runtime.json
+C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\obj\Debug\net9.0\ASM.sourcelink.json
+C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\bin\Debug\net9.0\ASM.xml
+C:\Users\MSI\Documents\BaiTap\NET1062-C6\NET1062-C6\MyLabs\ASM\Backend\obj\Debug\net9.0\ASM.xml

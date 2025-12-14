@@ -91,11 +91,12 @@ const saveCombo = async () => {
                     "Content-Type": "multipart/form-data"
                 }
             });
+            console.log("Cập nhật Combo: ", res.data);
 
-            Object.assign(currentCombo.value, ...res.data);
+            Object.assign(currentCombo.value, res.data);
             AlertSuccess('Cập nhật thành công!')
         } else {
-            if (!selectedFile) {
+            if (!selectedFile.value) {
                 AlertError("Vui lòng chọn ảnh cho combo");
                 return;
             }
@@ -111,13 +112,13 @@ const saveCombo = async () => {
                     "Content-Type": "multipart/form-data"
                 }
             });
-            combos.value.push(...res.data);
+            combos.value.push(res.data);
             AlertSuccess('Thêm Combo thành công!')
         }
         closeModal()
     }
     catch (e) {
-        console.log("Có lỗi xảy ra",e.response);   
+        console.log("Có lỗi xảy ra",e);   
     }
 }
 

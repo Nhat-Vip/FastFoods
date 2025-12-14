@@ -1,30 +1,11 @@
 <script setup>
 import api from '@/api';
 import { useCartStore } from '@/stores/cart';
+import useVuelidate from '@vuelidate/core';
+import { helpers, required } from '@vuelidate/validators';
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-// Giỏ hàng (giả lập – sau này dùng Pinia hoặc localStorage)
-// const cartItems = ref([
-//     {
-//         id: 1,
-//         name: 'Combo Gà Rán + Pepsi',
-//         price: 129000,
-//         quantity: 2,
-//         imageUrl: 'https://images.unsplash.com/photo-1626082927389-7e8bc2b2d1e0?w=400',
-//         isCombo: true,
-//         comboItems: ['Gà rán', 'Khoai chiên', 'Pepsi']
-//     },
-//     {
-//         id: 2,
-//         name: 'Burger Bò Phô Mai',
-//         price: 69000,
-//         quantity: 1,
-//         imageUrl: 'https://images.unsplash.com/photo-1565299507175-7b1d1b6b6b6a?w=400',
-//         isCombo: false
-//     }
-// ])
-const route = useRoute();
 const router = useRouter();
 const cart = useCartStore();
 
@@ -37,6 +18,20 @@ const orderInfo = ref({
     note: '',
 
 })
+const phoneValidator = helpers.withMessage(
+    'Số điện thoại không hợp lệ',
+    value => /^0\d{9}$/.test(value)
+);
+const rules = {
+    fullName: { required: helpers.withMessage('Vui lòng nhập họ và tên', required) },
+    phone: {
+        required: helpers.withMessage('Vui lòng nhập số điện thoại', required),
+        phoneValidator
+     },
+    address: { required: helpers.withMessage('Vui lòng nhập số địa chỉ', required) },
+}
+
+const v$ = useVuelidate(rules, orderInfo);
 
 const deliveryFee = 20000
 const isPlacing = ref(false)
@@ -84,6 +79,11 @@ function mapToOrderItem(item) {
 
 // Đặt hàng
 const placeOrder = async () => {
+    const isValid = await v$.value.$validate();
+    if (!isValid) {
+        return;
+    }
+
     if (!orderInfo.value.fullName || !orderInfo.value.phone || !orderInfo.value.address) {
         showNotification('Vui lòng điền đầy đủ thông tin!', 'error')
         return
@@ -195,14 +195,27 @@ onMounted(async () => {
                 <!-- Form thông tin giao hàng -->
                 <div class="delivery-form">
                     <h3>Thông tin nhận hàng</h3>
-                    <div class="form-group">
-                        <input v-model="orderInfo.fullName" placeholder="Họ và tên *" required />
+                    <!-- Thông báo -->
+                    <div v-if="notification" class="notification" :class="notification.type">
+                        {{ notification.message }}
                     </div>
                     <div class="form-group">
-                        <input v-model="orderInfo.phone" placeholder="Số điện thoại *" type="tel" required />
+                        <input v-model="orderInfo.fullName" placeholder="Họ và tên *" @blur="v$.fullName.$touch" />
+                        <div v-if="v$.fullName.$error" class="text-danger">
+                            {{ v$.fullName.$errors[0].$message }}
+                        </div>
                     </div>
                     <div class="form-group">
-                        <input v-model="orderInfo.address" placeholder="Địa chỉ giao hàng chi tiết *" required />
+                        <input v-model="orderInfo.phone" placeholder="Số điện thoại *" type="tel" @blur="v$.phone.$touch" />
+                        <div v-if="v$.phone.$error" class="text-danger">
+                            {{ v$.phone.$errors[0].$message }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <input v-model="orderInfo.address" placeholder="Địa chỉ giao hàng chi tiết *" @blur="v$.address.$touch" />
+                        <div v-if="v$.address.$error" class="text-danger">
+                            {{ v$.address.$errors[0].$message }}
+                        </div>
                     </div>
                     <div class="form-group">
                         <textarea v-model="orderInfo.note" placeholder="Ghi chú cho shipper (không bắt buộc)"
@@ -214,11 +227,6 @@ onMounted(async () => {
                 <button @click="placeOrder" class="btn-place-order" :disabled="isPlacing">
                     {{ isPlacing ? 'Đang xử lý...' : 'Đặt hàng ngay' }}
                 </button>
-
-                <!-- Thông báo -->
-                <div v-if="notification" class="notification" :class="notification.type">
-                    {{ notification.message }}
-                </div>
             </div>
         </div>
     </div>
@@ -418,6 +426,7 @@ h2 {
 
 .notification {
     margin-top: 20px;
+    margin-bottom: 20px;
     padding: 14px;
     border-radius: 8px;
     text-align: center;

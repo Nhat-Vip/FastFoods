@@ -67,6 +67,10 @@ const handleLogin = async() => {
       errorLogin.value = e.response.data.message;
     }
     else {
+      if(e.response && e.response.status === 429){
+        errorLogin.value = "Bạn đã đăng nhập quá nhiều lần. Vui lòng thử lại sau 1 phút";
+        return;
+      }
       errorLogin.value = "Có lỗi xảy ra khi đăng nhập vui lòng thử lại sau"
     }
   }
@@ -98,6 +102,7 @@ const handleRegister = async () => {
   }
   catch (e) {
     if (e.response && e.response.status === 400) {
+      AlertError(e.response.data.message || "Đăng ký thất bại");
       e.response.data.errors.forEach(err => errorMessages.value.push(err));
     }
     else {

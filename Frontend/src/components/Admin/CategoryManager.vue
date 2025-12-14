@@ -90,7 +90,6 @@ import api from '@/api'
 import { AlertError, AlertSuccess } from '@/Notification'
 import { ref, onMounted } from 'vue'
 
-// Giả lập dữ liệu (sau này sẽ lấy từ API)
 const categories = ref([])
 
 // Modal
@@ -141,10 +140,10 @@ const saveCategory = async () => {
             currentCategory.value.description = form.value.description
             AlertSuccess('Cập nhật danh mục thành công!')
         } else {
-            await api.post("/categories", form.value);
+            const res = await api.post("/categories", form.value);
 
             categories.value.push({
-                categoryId: Math.max(...categories.value.map(c => c.categoryId), 0) + 1,
+                categoryId: res.data.categoryId,
                 categoryName: form.value.categoryName,
                 description: form.value.description,
                 foodCount: 0,

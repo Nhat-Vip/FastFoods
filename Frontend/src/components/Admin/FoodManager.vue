@@ -87,10 +87,10 @@ const saveFood = async () => {
                 AlertError("Vui lòng chọn ảnh cho sản phẩm");
                 return;
             }
-            if (!form.value.categoryId) {
-                AlertError("Vui lòng chọn danh mục của sản phẩm");
-                return;
-            }
+            // if (!form.value.categoryId) {
+            //     AlertError("Vui lòng chọn danh mục của sản phẩm");
+            //     return;
+            // }
             form.value.imageFile = selectedFile.value;
             const res = await api.post("/fastfoods", form.value, {
                 headers: {
@@ -255,9 +255,9 @@ onMounted(async() => {
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Danh mục</label>
-                        <select class="form-select" v-model="form.categoryId">
-                            <option :value="null">Chưa chọn</option>
+                        <label class="form-label">Danh mục *</label>
+                        <select class="form-select" v-model="form.categoryId" required>
+                            <option value="">Chưa chọn</option>
                             <option v-for="cat in categories" :value="cat.categoryId">{{ cat.categoryName }}</option>
                         </select>
                     </div>
