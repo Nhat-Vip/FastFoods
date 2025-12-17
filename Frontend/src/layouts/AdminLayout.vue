@@ -63,13 +63,9 @@ const logout = () => {
 
     <!-- Nội dung bên phải -->
     <main class="main-content">
-      <header class="topbar">
+      <!-- <header class="topbar">
         <h1>{{ pageTitle }}</h1>
-        <!-- <div class="user-info">
-          Xin chào, <strong>Admin</strong>
-          <button @click="logout" class="btn-logout">Đăng xuất</button>
-        </div> -->
-      </header>
+      </header> -->
 
       <div class="content">
         <!-- Nội dung của từng trang sẽ được render ở đây -->
@@ -92,6 +88,8 @@ const logout = () => {
   display: flex;
   min-height: 100vh;
   background: #f4f6f9;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -99,7 +97,7 @@ const logout = () => {
   background: #2c3e50;
   color: white;
   padding: 20px 0;
-  min-height: 100vh;
+  max-height: 100vh;
 }
 
 .logo h2 {
@@ -146,6 +144,7 @@ const logout = () => {
 .topbar h1 {
   margin: 0;
   color: #2c3e50;
+  font-weight: 600;
   font-size: 22px;
 }
 

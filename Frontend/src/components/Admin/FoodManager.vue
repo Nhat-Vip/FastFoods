@@ -1,7 +1,7 @@
 <script setup>
 import api from '@/api'
 import { AlertError, AlertSuccess } from '@/Notification'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 // Giả lập dữ liệu (sau này lấy từ API)
 const fastFoods = ref([])
@@ -16,12 +16,32 @@ const categories = ref([
 // Modal & form
 const isModalOpen = ref(false)
 const isEditMode = ref(false)
+const isDetailMode = ref(false);
 const currentFood = ref(null)
 const foodToDelete = ref(null)
 const showConfirm = ref(false)
 const previewUrl = ref('')
 const selectedFile = ref(null);
 const isLockFood = ref(false);
+
+const currentPage = ref(1);
+const itemsPerPage = ref(6);
+const totalPages = computed(() => {
+    return Array.from({ length: Math.ceil(fastFoods.value.length / itemsPerPage.value) }, (_, i) => i + 1);
+});
+const maxPageIndex = ref(5);
+const minPageIndex = computed(() => {
+    const half = Math.floor(maxPageIndex.value / 2);
+    let start = currentPage.value - half;
+
+    if (start < 1) start = 1;
+
+    if (start + maxPageIndex.value - 1 > totalPages.value.length) {
+        start = Math.max(1, totalPages.value.length - maxPageIndex.value + 1);
+    }
+
+    return start;
+});
 
 const form = ref({
     name: '',
@@ -33,6 +53,7 @@ const form = ref({
 
 const openCreateModal = () => {
     isEditMode.value = false
+    isDetailMode.value = false
     form.value = { name: '', description: '', price: 0, categoryId: null }
     previewUrl.value = ''
     isModalOpen.value = true
@@ -40,6 +61,21 @@ const openCreateModal = () => {
 
 const openEditModal = (food) => {
     isEditMode.value = true
+    isDetailMode.value = false
+    currentFood.value = food
+    form.value = {
+        name: food.name,
+        description: food.description,
+        price: food.price,
+        categoryId: food.categoryId
+    }
+    previewUrl.value = food.imageUrl || ''
+    isModalOpen.value = true
+}
+const openDetailModal = (event, food) => {
+    if (event.target.closest(".dropdown")) return;
+    isDetailMode.value = true;
+    isEditMode.value = false;
     currentFood.value = food
     form.value = {
         name: food.name,
@@ -141,7 +177,7 @@ const confirmDelete = (food) => {
 }
 
 const deleteFood = async () => {
-    try { 
+    try {
 
         await api.delete(`/fastfoods/${foodToDelete.value.fastFoodId}`);
         fastFoods.value = fastFoods.value.filter(f => f.fastFoodId !== foodToDelete.value.fastFoodId)
@@ -167,11 +203,13 @@ const truncate = (text, length) => text.length > length ? text.slice(0, length) 
 const getCategoryName = (id) => categories.value.find(c => c.categoryId === id)?.categoryName || 'Chưa chọn'
 const getCategoryColor = (id) => categories.value.find(c => c.id === id)?.color || '#95a5a6'
 
-onMounted(async() => {
+onMounted(async () => {
     const resFoods = await api.get("/fastfoods/admin");
     fastFoods.value = resFoods.data;
     const resCategory = await api.get("/categories");
     categories.value = resCategory.data;
+
+    console.log("totalPages: ", totalPages.value);
 })
 </script>
 <template>
@@ -188,7 +226,7 @@ onMounted(async() => {
             <table class="food-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>#</th>
                         <th>Ảnh</th>
                         <th>Tên món</th>
                         <th>Danh mục</th>
@@ -199,15 +237,15 @@ onMounted(async() => {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="food in fastFoods" :key="food.fastFoodId">
-                        <td>#{{ food.fastFoodId }}</td>
+                    <tr v-for="food in fastFoods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)"
+                        @click="openDetailModal($event, food)" :key="food.fastFoodId">
+                        <td>{{ food.fastFoodId }}</td>
                         <td>
                             <img :src="food.imageUrl || 'https://via.placeholder.com/80x60?text=Food'" alt="food"
                                 class="thumb" />
                         </td>
                         <td class="name-col">
-                            <strong>{{ food.name }}</strong>
-                            <p class="desc-preview">{{ truncate(food.description, 40) }}</p>
+                            <span>{{ food.name }}</span>
                         </td>
                         <td>
                             <span class="category-badge">
@@ -215,48 +253,74 @@ onMounted(async() => {
                             </span>
                         </td>
                         <td class="price-col">{{ formatPrice(food.price) }}₫</td>
-                        <td>
-                            <span class="status-badge" :class="food.isActive ? 'active' : 'inactive'">
+                        <td class="status">
+                            <span :class="food.isActive ? 'active' : 'inactive'"></span>
+                            <span class="status-badge">
                                 {{ food.isActive ? 'Đang bán' : 'Ngưng bán' }}
                             </span>
                         </td>
                         <td>{{ formatDate(food.createdAt) }}</td>
-                        <td class="actions">
-                            <button @click="openEditModal(food)" class="btn-edit">Sửa</button>
-                            <button @click="toggleActive(food)" :class="food.isActive ? 'btn-hide' : 'btn-show'">
-                                {{ food.isActive ? 'Ngưng bán' : 'Bán lại' }}
+                        <td class="actions dropdown">
+                            <button type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
                             </button>
-                            <button @click="confirmDelete(food)" class="btn-delete">Xóa</button>
+                            <ul class="dropdown-menu">
+                                <li><button @click="openEditModal(food)" class="dropdown-item">Sửa</button></li>
+                                <li><button @click="toggleActive(food)" class="dropdown-item">
+                                        {{ food.isActive ? 'Ngưng bán' : 'Bán lại' }}
+                                    </button></li>
+                                <li><button @click="confirmDelete(food)" class="dropdown-item text-danger">Xóa</button>
+                                </li>
+                            </ul>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-
+        <div class="navigation" v-if="totalPages">
+            <button @click="currentPage = 1" :disabled="currentPage === 1" class="navigation-item previous">
+                <i class="bi bi-chevron-double-left"></i>
+            </button>
+            <button @click="currentPage--" :disabled="currentPage === 1" class="navigation-item previous">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button v-for="page in totalPages.slice(minPageIndex - 1, minPageIndex - 1 + maxPageIndex)" :key="page"
+                @click="currentPage = page" class="navigation-item" :class="currentPage == page ? 'active' : ''">
+                {{ page }}
+            </button>
+            <button @click="currentPage++" :disabled="currentPage === totalPages.length" class="navigation-item next">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <button @click="currentPage = totalPages.length" :disabled="currentPage === totalPages.length"
+                class="navigation-item next">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+        </div>
         <!-- Modal Thêm / Sửa món -->
         <Teleport to="body">
             <div v-if="isModalOpen" class="modal-overlay" @click="closeModal"></div>
             <div v-if="isModalOpen" class="food-modal">
                 <div class="modal-header">
-                    <h3>{{ isEditMode ? 'Sửa món ăn' : 'Thêm món ăn mới' }}</h3>
-                    <button @click="closeModal" class="btn-close">X</button>
+                    <h3>{{ isEditMode ? 'Sửa món ăn' : isDetailMode ? 'Chi tiết món ăn' : 'Thêm món ăn mới' }}</h3>
+                    <button @click="closeModal" class="btn btn-close"></button>
                 </div>
 
                 <form @submit.prevent="saveFood" class="modal-form">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Tên món *</label>
-                            <input class="form-control" v-model="form.name" required />
+                            <input class="form-control" v-model="form.name" required :disabled="isDetailMode" />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Giá (₫) *</label>
-                            <input class="form-control" v-model.number="form.price" type="number" min="0" required />
+                            <input class="form-control" v-model.number="form.price" type="number" min="0" required
+                                :disabled="isDetailMode" />
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Danh mục *</label>
-                        <select class="form-select" v-model="form.categoryId" required>
+                        <select class="form-select" v-model="form.categoryId" required :disabled="isDetailMode">
                             <option value="">Chưa chọn</option>
                             <option v-for="cat in categories" :value="cat.categoryId">{{ cat.categoryName }}</option>
                         </select>
@@ -264,16 +328,18 @@ onMounted(async() => {
 
                     <div class="form-group">
                         <label class="form-label">Mô tả chi tiết *</label>
-                        <textarea v-model="form.description" rows="4" required></textarea>
+                        <textarea v-model="form.description" class="p-2" rows="4" required
+                            :disabled="isDetailMode"></textarea>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Ảnh món ăn</label>
-                        <input type="file" @change="onFileChange" accept="image/*" class="mt-2 form-control" />
+                        <input type="file" @change="onFileChange" accept="image/*" class="mt-2 form-control"
+                            :disabled="isDetailMode" />
                         <img v-if="previewUrl" :src="previewUrl" class="preview-img" alt="Preview" />
                     </div>
 
-                    <div class="modal-actions">
+                    <div class="modal-actions" v-if="!isDetailMode">
                         <button type="submit" class="btn-save">
                             {{ isEditMode ? 'Cập nhật' : 'Thêm món' }}
                         </button>
@@ -298,9 +364,9 @@ onMounted(async() => {
                     </div>
                 </div>
                 <div v-else>
-                    <h3>{{foodToDelete.isActive ? "Ngưng bán" : "Bán lại"}} món ăn</h3>
+                    <h3>{{ foodToDelete.isActive ? "Ngưng bán" : "Bán lại" }} món ăn</h3>
                     <p>Bạn có chắc chắn {{ foodToDelete.isActive ? "Ngưng bán" : "Bán lại" }} <strong>{{
-                            foodToDelete?.name }}</strong>?</p>
+                        foodToDelete?.name }}</strong>?</p>
                     <div class="confirm-actions">
                         <button @click="lockFood" class="btn-danger">
                             {{ foodToDelete.isActive ? "Ngưng bán" : "Bán lại" }}
@@ -323,11 +389,18 @@ onMounted(async() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+}
+
+.header h2 {
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0;
+    color: #2c3e50;
 }
 
 .btn-add {
-    background: #27ae60;
+    background: var(--info-color);
     color: white;
     padding: 12px 24px;
     border: none;
@@ -351,17 +424,18 @@ onMounted(async() => {
 }
 
 .food-table th {
-    background: #2c3e50;
-    color: white;
-    padding: 16px 12px;
+    color: #333;
+    padding: 12px 16px;
     text-align: left;
     font-weight: 600;
+    border-bottom: 2px solid #eee;
 }
 
 .food-table td {
     padding: 14px 12px;
     border-bottom: 1px solid #eee;
     vertical-align: middle;
+    cursor: pointer;
 }
 
 .food-table tr:hover {
@@ -384,47 +458,6 @@ onMounted(async() => {
     margin: 4px 0 0;
     font-size: 12px;
     color: #777;
-}
-
-.category-badge {
-    background: #e74c3c;
-    padding: 4px 12px;
-    border-radius: 20px;
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.price-col {
-    font-weight: bold;
-    color: #e67e22;
-    font-size: 16px;
-}
-
-.status-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.status-badge.active {
-    background: #d4edda;
-    color: #155724;
-}
-
-.status-badge.inactive {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.actions button {
-    margin: 0 4px;
-    padding: 6px 10px;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
 }
 
 .btn-edit {
@@ -471,16 +504,18 @@ onMounted(async() => {
 }
 
 .modal-header {
-    background: #2c3e50;
-    color: white;
-    padding: 16px 24px;
+    background: #ffffff1f;
+    color: #333;
+    padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 2px solid #eee;
 }
 
 .btn-close {
-    background: none;
+    /* background: none; */
     border: none;
     color: white;
     font-size: 28px;
@@ -536,7 +571,7 @@ onMounted(async() => {
 
 .btn-save {
     flex: 1;
-    background: #27ae60;
+    background: var(--success-color);
     color: white;
     padding: 14px;
     border: none;
@@ -546,7 +581,7 @@ onMounted(async() => {
 
 .btn-cancel {
     flex: 1;
-    background: #eee;
+    background: var(--danger-color);
     padding: 14px;
     border: none;
     border-radius: 12px;

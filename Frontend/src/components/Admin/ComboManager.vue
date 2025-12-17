@@ -1,7 +1,7 @@
 <script setup>
 import api from '@/api'
 import { AlertError, AlertSuccess } from '@/Notification'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const combos = ref([])
 
@@ -14,6 +14,7 @@ const fastFoods = ref([
 
 const isModalOpen = ref(false)
 const isEditMode = ref(false)
+const isDetailMode = ref(false)
 const currentCombo = ref(null)
 const comboToDelete = ref(null)
 const showConfirm = ref(false)
@@ -21,6 +22,24 @@ const previewUrl = ref('');
 const selectedFile = ref(null);
 const isLockCombo = ref(false);
 
+const currentPage = ref(1);
+const itemsPerPage = ref(5);
+const totalPages = computed(() => {
+    return Array.from({ length: Math.ceil(combos.value.length / itemsPerPage.value) }, (_, i) => i + 1);
+});
+const maxPageIndex = ref(5);
+const minPageIndex = computed(() => {
+    const half = Math.floor(maxPageIndex.value / 2);
+    let start = currentPage.value - half;
+
+    if (start < 1) start = 1;
+
+    if (start + maxPageIndex.value - 1 > totalPages.value.length) {
+        start = Math.max(1, totalPages.value.length - maxPageIndex.value + 1);
+    }
+
+    return start;
+});
 const form = ref({
     name: '',
     description: '',
@@ -31,13 +50,31 @@ const form = ref({
 
 const openCreateModal = () => {
     isEditMode.value = false
+    isDetailMode.value = false
     form.value = { name: '', description: '', price: 0, comboItems: [{ fastFoodId: '', quantity: 1 }] }
     previewUrl.value = ''
     isModalOpen.value = true
 }
+const openDetailModal = (event, combo) => {
+    if (event.target.closest(".dropdown")) return;
+
+    isDetailMode.value = true;
+    isEditMode.value = false
+    currentCombo.value = combo
+    form.value = {
+        name: combo.name,
+        description: combo.description,
+        price: combo.price,
+        imageUrl: combo.imageUrl,
+        comboItems: combo.comboItems.map(i => ({ ...i }))
+    }
+    previewUrl.value = combo.imageUrl || ''
+    isModalOpen.value = true
+}
 
 const openEditModal = (combo) => {
-    isEditMode.value = true
+    isEditMode.value = true;
+    isDetailMode.value = false;
     currentCombo.value = combo
     form.value = {
         name: combo.name,
@@ -118,7 +155,7 @@ const saveCombo = async () => {
         closeModal()
     }
     catch (e) {
-        console.log("Có lỗi xảy ra",e);   
+        console.log("Có lỗi xảy ra", e);
     }
 }
 
@@ -134,7 +171,7 @@ const lockCombo = async () => {
         console.log("Lock Combo: ", res.data);
         comboToDelete.value.isActive = !comboToDelete.value.isActive;
         showConfirm.value = false
-        AlertSuccess(`${comboToDelete.value.isActive ? "Bán lại": "Ngưng bán"} ${comboToDelete.value.name} thành công`);
+        AlertSuccess(`${comboToDelete.value.isActive ? "Bán lại" : "Ngưng bán"} ${comboToDelete.value.name} thành công`);
         comboToDelete.value = null
     }
     catch (e) {
@@ -172,6 +209,12 @@ onMounted(async () => {
     const resFood = await api.get("/fastfoods");
     fastFoods.value = resFood.data;
 
+    console.log("Total pages:", minPageIndex.value);
+    console.log("minPageIndex :", totalPages.value.length - maxPageIndex.value);
+    console.log("maxPageIndex :", maxPageIndex.value);
+    console.log("Combos loaded:", combos.value.length);
+
+
 })
 </script>
 <template>
@@ -191,84 +234,114 @@ onMounted(async () => {
                         <th>ID</th>
                         <th>Ảnh</th>
                         <th>Tên Combo</th>
-                        <th>Mô tả</th>
-                        <th>Các món</th>
+                        <th>Ngày tạo</th>
+                        <!-- <th>Mô tả</th> -->
+                        <!-- <th>Các món</th> -->
                         <th>Giá</th>
                         <th>Trạng thái</th>
-                        <th>Ngày tạo</th>
                         <th>Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="combo in combos" :key="combo.comboId">
+                    <tr v-for="combo in combos.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)"
+                        @click="openDetailModal($event, combo)" :key="combo.comboId">
                         <td>#{{ combo.comboId }}</td>
                         <td>
                             <img :src="combo.imageUrl || 'https://via.placeholder.com/80x60?text=No+Image'" alt="combo"
                                 class="thumb" />
                         </td>
                         <td class="name-col">
-                            <strong>{{ combo.name }}</strong>
+                            <span>{{ combo.name }}</span>
                         </td>
-                        <td class="desc-col" :title="combo.description">{{ combo.description }}</td>
-                        <td class="items-col">
+                        <td>{{ formatDate(combo.createdAt) }}</td>
+
+                        <!-- <td class="desc-col" :title="combo.description">{{ combo.description }}</td> -->
+                        <!-- <td class="items-col">
                             <div v-for="item in combo.comboItems.slice(0,3)" :key="item.fastFoodId" class="item-tag">
                                 {{ item.fastFood.name }} ×{{ item.quantity }}
                             </div>
-                            <!-- Nếu có hơn 3 món → hiện dấu ... -->
                             <div v-if="combo.comboItems.length > 3" class="more-items">
                                 +{{ combo.comboItems.length - 3 }} món nữa
                             </div>
-                        </td>
+                        </td> -->
                         <td class="price-col">{{ formatPrice(combo.price) }}₫</td>
-                        <td>
-                            <span class="status-badge" :class="combo.isActive ? 'active' : 'inactive'">
+                        <td class="status">
+                            <span :class="combo.isActive ? 'active' : 'inactive'"></span>
+                            <span class="status-badge">
                                 {{ combo.isActive ? 'Đang bán' : 'Ngưng bán' }}
                             </span>
                         </td>
-                        <td>{{ formatDate(combo.createdAt) }}</td>
-                        <td class="actions">
-                            <button @click="openEditModal(combo)" class="btn-edit" title="Sửa">Sửa</button>
-                            <button @click="confirmDelete(combo)" class="btn-delete" title="Xóa">Xóa</button>
-                            <button @click="toggleActive(combo)" class="btn-toggle"
-                                :class="combo.isActive ? 'hide' : 'show'">
-                                {{ combo.isActive ? 'Ngưng bán' : 'Bán' }}
-                            </button>
-
+                        <td class="actions dropdown">
+                            <button type="button" data-bs-toggle="dropdown"><i
+                                    class="bi bi-three-dots-vertical"></i></button>
+                            <ul class="dropdown-menu">
+                                <li><button @click="openEditModal(combo)" class="dropdown-item" title="Sửa">Sửa</button>
+                                </li>
+                                <li>
+                                    <button @click="toggleActive(combo)" class="dropdown-item"
+                                        :class="combo.isActive ? 'hide' : 'show'">
+                                        {{ combo.isActive ? 'Ngưng bán' : 'Bán' }}
+                                    </button>
+                                </li>
+                                <li><button @click="confirmDelete(combo)" class="dropdown-item text-danger"
+                                        title="Xóa">Xóa</button>
+                                </li>
+                            </ul>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-
+        <div class="navigation" v-if="totalPages">
+            <button @click="currentPage = 1" :disabled="currentPage === 1" class="navigation-item previous">
+                <i class="bi bi-chevron-double-left"></i>
+            </button>
+            <button @click="currentPage--" :disabled="currentPage === 1" class="navigation-item previous">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button v-for="page in totalPages.slice(minPageIndex - 1, minPageIndex - 1 + maxPageIndex)" :key="page"
+                @click="currentPage = page" class="navigation-item" :class="currentPage == page ? 'active' : ''">
+                {{ page }}
+            </button>
+            <button @click="currentPage++" :disabled="currentPage === totalPages.length" class="navigation-item next">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <button @click="currentPage = totalPages.length" :disabled="currentPage === totalPages.length"
+                class="navigation-item next">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+        </div>
         <!-- Modal Thêm/Sửa Combo -->
         <Teleport to="body">
             <div v-if="isModalOpen" class="modal-overlay" @click="closeModal"></div>
             <div v-if="isModalOpen" class="combo-modal">
                 <div class="modal-header">
-                    <h3>{{ isEditMode ? 'Sửa Combo' : 'Thêm Combo mới' }}</h3>
-                    <button @click="closeModal" class="btn-close">×</button>
+                    <h3>{{ isEditMode ? 'Sửa Combo' : isDetailMode ? 'Chi tiết Combo' : 'Thêm Combo mới' }}</h3>
+                    <button @click="closeModal" class="btn btn-close"></button>
                 </div>
 
                 <form @submit.prevent="saveCombo" class="modal-form">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tên Combo *</label>
-                            <input class="form-control" v-model="form.name" required />
+                            <input class="form-control" v-model="form.name" required :disabled="isDetailMode" />
                         </div>
                         <div class="form-group">
                             <label>Giá (₫) *</label>
-                            <input class="form-control" v-model.number="form.price" type="number" min="0" required />
+                            <input class="form-control" v-model.number="form.price" type="number" min="0" required
+                                :disabled="isDetailMode" />
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Mô tả *</label>
-                        <textarea v-model="form.description" rows="3" required></textarea>
+                        <textarea v-model="form.description" rows="3" required :disabled="isDetailMode"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Ảnh Combo (URL)</label>
-                        <input type="file" @change="onFileChange" accept="image/*" class="mt-2 form-control" />
+                        <label class="form-label">Ảnh Combo</label>
+                        <input type="file" @change="onFileChange" accept="image/*" class="mt-2 form-control"
+                            :disabled="isDetailMode" />
                         <img v-if="previewUrl" :src="previewUrl" class="preview-img" />
                     </div>
 
@@ -276,21 +349,24 @@ onMounted(async () => {
                     <div class="items-section">
                         <h4>Các món trong Combo</h4>
                         <div v-for="(item, i) in form.comboItems" :key="i" class="item-row">
-                            <select class="form-select" v-model="item.fastFoodId" required>
+                            <select class="form-select" v-model="item.fastFoodId" required :disabled="isDetailMode">
                                 <option value="">-- Chọn món --</option>
                                 <option v-for="food in fastFoods" :value="food.fastFoodId">{{ food.name }}</option>
                             </select>
                             <input v-model.number="item.quantity" type="number" min="1" placeholder="SL"
-                                class="form-control qty-input" />
-                            <button type="button" @click="form.comboItems.splice(i, 1)" class="btn-remove">×</button>
+                                class="form-control qty-input" :disabled="isDetailMode" />
+                            <button v-if="!isDetailMode" type="button" @click="form.comboItems.splice(i, 1)"
+                                class="btn-remove">
+                                <i class="bi bi-trash3-fill"></i>
+                            </button>
                         </div>
-                        <button type="button" @click="form.comboItems.push({ fastFoodId: '', quantity: 1 })"
-                            class="btn-add-item">
+                        <button v-if="!isDetailMode" type="button"
+                            @click="form.comboItems.push({ fastFoodId: '', quantity: 1 })" class="btn-add-item">
                             + Thêm món
                         </button>
                     </div>
 
-                    <div class="modal-actions">
+                    <div class="modal-actions" v-if="!isDetailMode">
                         <button type="submit" class="btn-save">
                             {{ isEditMode ? 'Cập nhật' : 'Thêm Combo' }}
                         </button>
@@ -309,13 +385,13 @@ onMounted(async () => {
                     <p>Xóa <strong>{{ comboToDelete?.name }}</strong> vĩnh viễn?</p>
                 </div>
                 <div v-else>
-                    <h3>Ngưng bán Combo?</h3>
+                    <h3>{{ comboToDelete.isActive ? "Ngưng bán" : "Bán lại" }} Combo?</h3>
                     <p>Ngưng bán <strong>{{ comboToDelete?.name }}</strong></p>
                 </div>
                 <div class="confirm-actions">
                     <button v-if="!isLockCombo" @click="deleteCombo" class="btn-danger">Xóa</button>
                     <button v-else @click="lockCombo" class="btn-danger">
-                        {{ comboToDelete.isActive ? "Ngưng bán" : "Bán lại"}}
+                        {{ comboToDelete.isActive ? "Ngưng bán" : "Bán lại" }}
                     </button>
                     <button @click="showConfirm = false" class="btn-cancel">Hủy</button>
                 </div>
@@ -360,70 +436,30 @@ onMounted(async () => {
     border-collapse: collapse;
     table-layout: fixed;
 }
+
 /* ID */
 .combo-table th:nth-child(1),
 .combo-table td:nth-child(1) {
-    width: 40px;
-}
-/* Ảnh */
-.combo-table th:nth-child(2),
-.combo-table td:nth-child(2) {
-    width: 100px;
-}
-/* Tên combo*/
-.combo-table th:nth-child(3),
-.combo-table td:nth-child(3) {
-    width: 140px;
-}
-/* Mô tả */
-.combo-table th:nth-child(4),
-.combo-table td:nth-child(4) {
-    text-align: center;
-    width: 160px;
-}
-/* Các món */
-.combo-table th:nth-child(5),
-.combo-table td:nth-child(5) {
-    text-align: center;
-    width: 140px;
-}
-/* Giá */
-.combo-table th:nth-child(6),
-.combo-table td:nth-child(6) {
-    text-align: center;
-    width: 100px;
-}
-/* Trạng thái */
-.combo-table th:nth-child(7),
-.combo-table td:nth-child(7) {
-    width: 90px;
-}
-/* Ngày tạo */
-.combo-table th:nth-child(8),
-.combo-table td:nth-child(8) {
-    width: 90px;
-}
-/* Hành động */
-.combo-table th:nth-child(9),
-.combo-table td:nth-child(9) {
-    text-align: center;
-    width: 140px;
+    width: 60px;
 }
 
+
 .combo-table th {
-    background: #2c3e50;
-    color: white;
-    padding: 12px 12px;
+    color: #333;
+    padding: 12px 16px;
     text-align: left;
     font-weight: 600;
+    border-bottom: 2px solid #eee;
 }
 
 .combo-table td {
     padding: 14px 12px;
     /* border-bottom: 1px solid #eee; */
     vertical-align: middle;
+    cursor: pointer;
 }
-.combo-table tr{
+
+.combo-table tr {
     border-bottom: 1px solid #eee;
 }
 
@@ -438,98 +474,13 @@ onMounted(async () => {
     border-radius: 8px;
 }
 
-.name-col {
-    font-weight: 600;
-}
 
-.desc-col {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #555;
-}
 
-.items-col {
-    max-width: 220px;
-}
-
-.item-tag {
-    display: inline-block;
-    background: #e3f2fd;
-    color: #1976d2;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    margin: 2px;
-
-}
 
 .more-items {
     color: #666;
     font-size: 13px;
     font-style: italic;
-}
-
-.price-col {
-    font-weight: bold;
-    color: #e67e22;
-    font-size: 16px;
-}
-
-.status-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-.status-badge.active {
-    background: #d4edda;
-    color: #155724;
-}
-
-.status-badge.inactive {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.actions{
-    display: flex;
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 2px;
-}
-
-.actions button {
-    margin: 0 4px;
-    padding: 6px 10px;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.btn-edit {
-    background: #3498db;
-    color: white;
-}
-
-.btn-toggle.hide {
-    background: #95a5a6;
-    color: white;
-}
-
-.btn-toggle.show {
-    background: #27ae60;
-    color: white;
-}
-
-.btn-delete {
-    background: #e74c3c;
-    color: white;
 }
 
 /* Modal */
@@ -556,16 +507,18 @@ onMounted(async () => {
 }
 
 .modal-header {
-    background: #2c3e50;
-    color: white;
-    padding: 16px 24px;
+    background: #ffffff1f;
+    color: #333;
+    padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 2px solid #eee;
 }
 
 .btn-close {
-    background: none;
+    /* background: none; */
     border: none;
     color: white;
     font-size: 28px;

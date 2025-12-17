@@ -8,7 +8,7 @@ public interface IUserServices
     Task<User?> GetUserByEmailAsync(string email);
     Task<IEnumerable<User>?> GetAllUsersAsync();
     Task CreateUserAsync(User user);
-    Task UpdateUserAsync(User user);
+    Task UpdateUserAsync(User currentUser,User updatedUser);
     Task DeleteUserAsync(User user);
     Task LockUserAsync(User user);
 }
@@ -43,11 +43,16 @@ public class UserServices : IUserServices
         await _context.SaveChangesAsync();
     }
 
-    public async Task UpdateUserAsync(User user)
+    public async Task UpdateUserAsync(User currentUser,User updateUser)
     {
-        user.FullName = _sanitizer.Sanitize(user.FullName);
-        user.Address = _sanitizer.Sanitize(user.Address);
-        _context.Users.Update(user);
+        currentUser.FullName = _sanitizer.Sanitize(updateUser.FullName);
+        currentUser.Address = _sanitizer.Sanitize(updateUser.Address);
+        currentUser.Phone = updateUser.Phone;
+        currentUser.DateOfBirth = updateUser.DateOfBirth;
+        currentUser.UserRole = updateUser.UserRole;
+        currentUser.Username = updateUser.Username;
+        currentUser.Email = updateUser.Email;
+        // _context.Users.Update(user);
         await _context.SaveChangesAsync();
     }
 

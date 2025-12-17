@@ -12,24 +12,20 @@
             <table class="category-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>#</th>
                         <th>Tên danh mục</th>
                         <th>Mô tả</th>
-                        <th>Số món</th>
-                        <th>Hành động</th>
+                        <th class="text-center">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="cat in categories" :key="cat.categoryId">
-                        <td>#{{ cat.categoryId }}</td>
+                    <tr v-for="cat in categories.slice((currentPage-1)*itemsPerPage, currentPage * itemsPerPage)" :key="cat.categoryId" @click="openDetailModal($event,cat)">
+                        <td>{{ cat.categoryId }}</td>
                         <td class="name-col">
                             <strong>{{ cat.categoryName }}</strong>
                         </td>
                         <td class="desc-col">
                             {{ cat.description || '—' }}
-                        </td>
-                        <td class="count-col">
-                            <span class="badge">{{ cat.fastFoods?.length || 0 }} món</span>
                         </td>
                         <td class="actions">
                             <button @click="openEditModal(cat)" class="btn-edit">Sửa</button>
@@ -39,29 +35,47 @@
                 </tbody>
             </table>
         </div>
-
+        <div class="navigation" v-if="totalPages">
+            <button @click="currentPage = 1" :disabled="currentPage === 1" class="navigation-item previous">
+                <i class="bi bi-chevron-double-left"></i>
+            </button>
+            <button @click="currentPage--" :disabled="currentPage === 1" class="navigation-item previous">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button v-for="page in totalPages.slice(minPageIndex - 1, minPageIndex - 1 + maxPageIndex)" :key="page"
+                @click="currentPage = page" class="navigation-item" :class="currentPage == page ? 'active' : ''">
+                {{ page }}
+            </button>
+            <button @click="currentPage++" :disabled="currentPage === totalPages.length" class="navigation-item next">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <button @click="currentPage = totalPages.length" :disabled="currentPage === totalPages.length"
+                class="navigation-item next">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+        </div>
         <!-- Modal Thêm/Sửa danh mục -->
         <Teleport to="body">
             <div v-if="isModalOpen" class="modal-overlay" @click="closeModal"></div>
             <div v-if="isModalOpen" class="category-modal">
                 <div class="modal-header">
-                    <h3>{{ isEditMode ? 'Sửa danh mục' : 'Thêm danh mục mới' }}</h3>
-                    <button @click="closeModal" class="btn-close">×</button>
+                    <h3>{{ isEditMode ? 'Sửa danh mục' : isDetailMode ? 'Chi tiết danh mục' : 'Thêm danh mục mới' }}</h3>
+                    <button @click="closeModal" class="btn btn-close"></button>
                 </div>
 
                 <form @submit.prevent="saveCategory" class="modal-form">
                     <div class="form-group">
                         <label>Tên danh mục *</label>
-                        <input v-model="form.categoryName" required placeholder="Ví dụ: Burger, Gà rán, Pizza..." />
+                        <input v-model="form.categoryName" required placeholder="Ví dụ: Burger, Gà rán, Pizza..." :disabled="isDetailMode"/>
                     </div>
 
                     <div class="form-group">
                         <label>Mô tả (không bắt buộc)</label>
                         <textarea v-model="form.description" rows="3"
-                            placeholder="Mô tả ngắn về danh mục này..."></textarea>
+                            placeholder="Mô tả ngắn về danh mục này..." :disabled="isDetailMode"></textarea>
                     </div>
 
-                    <div class="modal-actions">
+                    <div class="modal-actions" v-if="!isDetailMode">
                         <button type="submit" class="btn-save">
                             {{ isEditMode ? 'Cập nhật' : 'Thêm danh mục' }}
                         </button>
@@ -88,7 +102,7 @@
 <script setup>
 import api from '@/api'
 import { AlertError, AlertSuccess } from '@/Notification'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted ,computed} from 'vue'
 
 const categories = ref([])
 
@@ -98,6 +112,26 @@ const isEditMode = ref(false)
 const currentCategory = ref(null)
 const categoryToDelete = ref(null)
 const showConfirm = ref(false)
+const isDetailMode = ref(false)
+const currentPage = ref(1);
+const itemsPerPage = ref(6);
+const totalPages = computed(() => {
+    return Array.from({ length: Math.ceil(categories.value.length / itemsPerPage.value) }, (_, i) => i + 1);
+});
+const maxPageIndex = ref(5);
+const minPageIndex = computed(() => {
+    const half = Math.floor(maxPageIndex.value / 2);
+    let start = currentPage.value - half;
+
+    if (start < 1) start = 1;
+
+    if (start + maxPageIndex.value - 1 > totalPages.value.length) {
+        start = Math.max(1, totalPages.value.length - maxPageIndex.value + 1);
+    }
+
+    return start;
+});
+
 
 const form = ref({
     categoryName: '',
@@ -106,12 +140,25 @@ const form = ref({
 
 const openCreateModal = () => {
     isEditMode.value = false
+    isDetailMode.value = false
     form.value = { categoryName: '', description: '' }
     isModalOpen.value = true
 }
 
 const openEditModal = (cat) => {
     isEditMode.value = true
+    isDetailMode.value = false
+    currentCategory.value = cat
+    form.value = {
+        categoryName: cat.categoryName,
+        description: cat.description || ''
+    }
+    isModalOpen.value = true
+}
+const openDetailModal = (event, cat) => {
+    if (event.target.closest(".btn-edit") || event.target.closest(".btn-delete")) return;
+    isDetailMode.value = true
+    isEditMode.value = false
     currentCategory.value = cat
     form.value = {
         categoryName: cat.categoryName,
@@ -171,8 +218,7 @@ const confirmDelete = (cat) => {
 }
 
 const deleteCategory = async () => {
-    try
-    {
+    try {
         if (categoryToDelete.value.fastFoods?.length > 0) {
             AlertError(
                 `Không thể xóa danh mục "${categoryToDelete.value.categoryName}" vì vẫn còn 
@@ -197,7 +243,7 @@ const deleteCategory = async () => {
     }
 }
 
-onMounted( async() => {
+onMounted(async () => {
     const res = await api.get("/categories");
     categories.value = res.data;
 })
@@ -217,8 +263,15 @@ onMounted( async() => {
     margin-bottom: 24px;
 }
 
+.header h2 {
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0;
+    color: #2c3e50;
+}
+
 .btn-add {
-    background: #27ae60;
+    background: var(--info-color);
     color: white;
     padding: 12px 24px;
     border: none;
@@ -240,16 +293,18 @@ onMounted( async() => {
 }
 
 .category-table th {
-    background: #2c3e50;
-    color: white;
-    padding: 16px 12px;
+    color: #333;
+    padding: 12px 16px;
     text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #eee;
 }
 
 .category-table td {
     padding: 16px 12px;
     border-bottom: 1px solid #eee;
     vertical-align: middle;
+    cursor: pointer;
 }
 
 .category-table tr:hover {
@@ -265,31 +320,6 @@ onMounted( async() => {
     max-width: 300px;
 }
 
-.count-col .badge {
-    background: #3498db;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: bold;
-}
-
-.status-badge {
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.status-badge.active {
-    background: #d4edda;
-    color: #155724;
-}
-
-.status-badge.inactive {
-    background: #f8d7da;
-    color: #721c24;
-}
 
 .actions button {
     margin: 0 4px;
@@ -301,22 +331,12 @@ onMounted( async() => {
 }
 
 .btn-edit {
-    background: #3498db;
-    color: white;
-}
-
-.btn-show {
-    background: #27ae60;
-    color: white;
-}
-
-.btn-hide {
-    background: #95a5a6;
+    background: var(--info-color);
     color: white;
 }
 
 .btn-delete {
-    background: #e74c3c;
+    background: var(--danger-color);
     color: white;
 }
 
@@ -343,16 +363,17 @@ onMounted( async() => {
 }
 
 .modal-header {
-    background: #2c3e50;
-    color: white;
-    padding: 16px 24px;
+    background: #ffffff1f;
+    color: #333;
+    padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 2px solid #eee;
 }
 
 .btn-close {
-    background: none;
     border: none;
     color: white;
     font-size: 28px;
@@ -360,18 +381,7 @@ onMounted( async() => {
 }
 
 .modal-form {
-    padding: 30px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #2c3e50;
+    padding: 20px;
 }
 
 .form-group input,
@@ -391,7 +401,7 @@ onMounted( async() => {
 
 .btn-save {
     flex: 1;
-    background: #27ae60;
+    background: var(--success-color);
     color: white;
     padding: 14px;
     border: none;
@@ -401,7 +411,7 @@ onMounted( async() => {
 
 .btn-cancel {
     flex: 1;
-    background: #eee;
+    background: var(--danger-color);
     padding: 14px;
     border: none;
     border-radius: 12px;

@@ -177,7 +177,9 @@ onMounted(async () => {
                 </li>
             </ul>
         </div>
-        <hr />
+        <div class="line">
+            <span class="line-text">Danh sách sản phẩm</span>
+        </div>
            <div class="fs-4 fw-bold text-center mt-3" style="color: orangered;"
                  v-if="notFound">
                    {{notFound}}
@@ -263,8 +265,8 @@ onMounted(async () => {
     }
     .category-item{
         list-style: none;
-        padding: 12px 18px;
-        border-radius: 20px;
+        padding: 8px 14px;
+        border-radius: 16px;
         border: 2px solid #e0e0e0;
         background-color: #f8f9fa;
         font-size: 16px;
@@ -276,11 +278,11 @@ onMounted(async () => {
 
     }
     .category-item:hover{
-        background: #fff;
-        border-color: #ff6b35;
+        background: #f8f9fa;
+        /* border-color: #ff6b35; */
         color: #ff6b35;
         transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(255, 107, 53, 0.2);
+        /* box-shadow: 0 10px 25px rgba(255, 107, 53, 0.2); */
     }
     .category-item.active {
         background: #ff6b35;
@@ -301,5 +303,30 @@ onMounted(async () => {
         gap: 10px;
         flex-wrap: wrap;
         margin: 0 auto;
+    }
+    .line{
+        position: relative;
+        text-align: center;
+        width: 80%;
+        margin: 20px auto;
+    }
+    .line::after{
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        width: 100%;
+        height: 1px;
+        background-color: #333;
+        border-radius: 2px;
+    }
+    .line-text{
+        position: relative;
+        font-size: 28px;
+        font-weight: 700;
+        background-color: #f5f5f5;
+        padding: 0 15px;
+        z-index: 1;
     }
 </style>

@@ -129,6 +129,8 @@ onMounted( async() => {
 
             <!-- Form chỉnh sửa -->
             <form @submit.prevent="updateProfile" class="profile-form">
+                <p v-if="successMessage" class="success">{{ successMessage }}</p>
+                <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
                 <div class="form-group">
                     <label>Họ và tên *</label>
                     <input v-model="user.FullName" type="text" @blur="v$.user.FullName.$touch" />
@@ -183,8 +185,6 @@ onMounted( async() => {
                     </button>
                 </div>
 
-                <p v-if="successMessage" class="success">{{ successMessage }}</p>
-                <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
             </form>
         </div>
     </div>

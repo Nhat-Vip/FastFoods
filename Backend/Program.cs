@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using AngleSharp.Css.Dom;
 using Ganss.Xss;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -254,6 +255,7 @@ foodEndpoints.MapPut("/lock/{id}", async (int id, IFastFoodServices services) =>
         if (existingFood == null)
         {
             return Results.NotFound(new { Message = "Food not found." });
+
         }
 
         await services.LockFastFoodAsync(existingFood);
@@ -511,7 +513,7 @@ userEndpoint.MapPut("/{id}", async (int id, IUserServices services, User updateU
         {
             return Results.BadRequest($"Không tìm thấy user có Id là {id}");
         }
-        await services.UpdateUserAsync(updateUser);
+        await services.UpdateUserAsync(user,updateUser);
         return Results.Ok(updateUser);
     }
     catch (Exception e)

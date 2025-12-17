@@ -111,8 +111,8 @@ onMounted(async () => {
                 <h1 class="food-name">{{ food.name }}</h1>
 
                 <!-- Badge Combo nếu có -->
-                <div v-if="food.isCombo" class="tag-combo">Combo</div>
-                <div v-if="!food.isCombo" class="tag-fastFood">FastFood</div>
+                <!-- <div v-if="food.isCombo" class="tag-combo">Combo</div>
+                <div v-if="!food.isCombo" class="tag-fastFood">FastFood</div> -->
 
                 <!-- Giá -->
                 <div class="price-section">
@@ -220,9 +220,10 @@ onMounted(async () => {
 .food-name {
     font-size: 28px;
     margin: 0 0 12px 0;
-    color: #2c3e50;
+    color: #333;
+    font-weight: 600;
 }
-
+/* 
 .tag-combo, .tag-fastFood {
     display: inline-block;
     background: #2874f0;
@@ -233,7 +234,7 @@ onMounted(async () => {
     font-weight: bold;
     align-self: flex-start;
     margin-bottom: 16px;
-}
+} */
 
 .price-section {
     margin: 0;
