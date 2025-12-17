@@ -686,6 +686,7 @@ app.MapPost("/api/register", async (User user, IAccountServices services, IHtmlS
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
     await SeedData.Initialize(db);
 }
 
