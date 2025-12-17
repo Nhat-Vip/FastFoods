@@ -5,7 +5,7 @@ import { useRoute } from "vue-router";
 
 
 const api = axios.create({
-    baseURL: "http://localhost:5062/api"
+    baseURL: "https://fastfoods-isb7.onrender.com/api"
 });
 
 api.interceptors.request.use(config => {
